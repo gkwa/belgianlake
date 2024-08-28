@@ -46,9 +46,11 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.belgianlake.yaml)")
+	rootCmd.PersistentFlags().
+		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.belgianlake.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose mode")
-	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "", "json or text (default is text)")
+	rootCmd.PersistentFlags().
+		StringVar(&logFormat, "log-format", "", "json or text (default is text)")
 
 	if err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
 		fmt.Printf("Error binding verbose flag: %v\n", err)

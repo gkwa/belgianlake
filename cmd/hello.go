@@ -12,7 +12,7 @@ var helloCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := LoggerFrom(cmd.Context())
 		logger.Info("Running hello command")
-		core.Hello(logger)
+		core.Main()
 	},
 }
 
