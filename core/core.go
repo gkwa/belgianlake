@@ -25,8 +25,15 @@ type Item struct {
 	File  string `json:"file"`
 }
 
-func (i Item) Title() string       { return i.File }
-func (i Item) Description() string { return fmt.Sprintf("Print: %v", i.Print) }
+func (i Item) Title() string {
+	printStatus := "[ ]"
+	if i.Print {
+		printStatus = "[x]"
+	}
+	return fmt.Sprintf("%-3s  %s", printStatus, i.File)
+}
+
+func (i Item) Description() string { return "" }
 func (i Item) FilterValue() string { return i.File }
 
 type model struct {
@@ -75,11 +82,24 @@ var docStyle = lipgloss.NewStyle().Margin(1, 2)
 func Main() {
 	items := loadItems()
 
+	delegate := list.NewDefaultDelegate()
+	delegate.SetHeight(1)
+	delegate.SetSpacing(0)
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+		BorderLeft(true).
+		BorderStyle(lipgloss.NormalBorder()).
+		Padding(0)
+	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.
+		Padding(0)
+
 	m := model{
-		list:  list.New(itemsToListItems(items), list.NewDefaultDelegate(), 0, 0),
+		list:  list.New(itemsToListItems(items), delegate, 0, 0),
 		items: items,
 	}
 	m.list.Title = "JSONL Items"
+	m.list.SetShowStatusBar(false)
+	m.list.SetFilteringEnabled(false)
+	m.list.Styles.Title = lipgloss.NewStyle().MarginLeft(2)
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
