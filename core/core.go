@@ -77,20 +77,24 @@ func (m model) View() string {
 	return docStyle.Render(m.list.View())
 }
 
-var docStyle = lipgloss.NewStyle().Margin(1, 2)
+var docStyle = lipgloss.NewStyle().Margin(0, 1)
 
 func Main() {
 	items := loadItems()
 
 	delegate := list.NewDefaultDelegate()
-	delegate.SetHeight(1)
+	delegate.SetHeight(1) // Set height to 1 instead of 0
 	delegate.SetSpacing(0)
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
 		BorderLeft(true).
 		BorderStyle(lipgloss.NormalBorder()).
-		Padding(0)
+		Padding(0).
+		MarginTop(0).
+		MarginBottom(0)
 	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.
-		Padding(0)
+		Padding(0).
+		MarginTop(0).
+		MarginBottom(0)
 
 	m := model{
 		list:  list.New(itemsToListItems(items), delegate, 0, 0),
@@ -99,7 +103,8 @@ func Main() {
 	m.list.Title = "JSONL Items"
 	m.list.SetShowStatusBar(false)
 	m.list.SetFilteringEnabled(false)
-	m.list.Styles.Title = lipgloss.NewStyle().MarginLeft(2)
+	m.list.Styles.Title = lipgloss.NewStyle().MarginLeft(2).MarginBottom(0)
+	m.list.Styles.PaginationStyle = lipgloss.NewStyle().Margin(0)
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
