@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/gkwa/belgianlake/core"
 	"github.com/gkwa/belgianlake/internal/logger"
 )
 
@@ -24,15 +25,17 @@ var rootCmd = &cobra.Command{
 	Short: "A brief description of your application",
 	Long:  `A longer description that spans multiple lines and likely contains examples and usage of using your application.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Initialize the console logger just before running
-		// a command only if one wasn't provided. This allows other
-		// callers (e.g. unit tests) to inject their own logger ahead of time.
 		if cliLogger.IsZero() {
 			cliLogger = logger.NewConsoleLogger(verbose, logFormat == "json")
 		}
 
 		ctx := logr.NewContext(context.Background(), cliLogger)
 		cmd.SetContext(ctx)
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		logger := LoggerFrom(cmd.Context())
+		logger.Info("Running core.Main")
+		core.Main()
 	},
 }
 

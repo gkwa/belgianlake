@@ -137,8 +137,8 @@ func (m model) View() string {
 		return "Bye!"
 	}
 	return baseStyle.Render(m.table.View()) + "\n" +
-		"Space: select/deselect row & move to next | Shift+Space: select range | Enter: toggle selected rows\n" +
-		"t: toggle all | a: select all | d: deselect all | e: toggle enable/disable all | x: toggle current row & move to next | u: undo | q: quit"
+		"Space: select/deselect row | Shift+Space: select range | Enter: toggle selected rows\n" +
+		"t: toggle all | a: select all | d: deselect all | e: toggle enable/disable all | x: toggle current row | u: undo | q: quit"
 }
 
 var baseStyle = lipgloss.NewStyle().
