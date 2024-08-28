@@ -30,7 +30,7 @@ func (i Item) Title() string {
 	if i.Print {
 		printStatus = "[x]"
 	}
-	return fmt.Sprintf("%-3s  %s", printStatus, i.File)
+	return fmt.Sprintf("%-3s %s", printStatus, i.File)
 }
 
 func (i Item) Description() string { return "" }
@@ -53,12 +53,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			m.quitting = true
 			return m, tea.Quit
-		case " ":
-			index := m.list.Index()
-			m.items[index].Print = !m.items[index].Print
-			m.list.SetItems(itemsToListItems(m.items))
-			saveItems(m.items)
-			return m, nil
 		}
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
@@ -77,33 +71,61 @@ func (m model) View() string {
 	return docStyle.Render(m.list.View())
 }
 
-var docStyle = lipgloss.NewStyle().Margin(0, 1)
+var docStyle = lipgloss.NewStyle().Margin(0, 0)
 
 func Main() {
 	items := loadItems()
 
 	delegate := list.NewDefaultDelegate()
-	delegate.SetHeight(1) // Set height to 1 instead of 0
+	delegate.SetHeight(1)
 	delegate.SetSpacing(0)
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
 		BorderLeft(true).
 		BorderStyle(lipgloss.NormalBorder()).
-		Padding(0).
-		MarginTop(0).
-		MarginBottom(0)
+		Padding(0)
 	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.
-		Padding(0).
-		MarginTop(0).
-		MarginBottom(0)
+		Padding(0)
+
+	customDelegate := func(d list.DefaultDelegate) list.DefaultDelegate {
+		d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
+			switch msg := msg.(type) {
+			case tea.KeyMsg:
+				switch msg.String() {
+				case " ":
+					index := m.Index()
+					items := m.Items()
+					if item, ok := items[index].(Item); ok {
+						item.Print = !item.Print
+						items[index] = item
+						m.SetItems(items)
+
+						// Move to the next item
+						nextIndex := (index + 1) % len(items)
+						m.Select(nextIndex)
+
+						return tea.Batch(
+							m.NewStatusMessage(fmt.Sprintf("Toggled %s", item.File)),
+							saveItemsCmd(itemsToItems(items)),
+						)
+					}
+				}
+			}
+			return nil
+		}
+		return d
+	}(delegate)
 
 	m := model{
-		list:  list.New(itemsToListItems(items), delegate, 0, 0),
+		list:  list.New(itemsToListItems(items), customDelegate, 0, 0),
 		items: items,
 	}
 	m.list.Title = "JSONL Items"
 	m.list.SetShowStatusBar(false)
 	m.list.SetFilteringEnabled(false)
-	m.list.Styles.Title = lipgloss.NewStyle().MarginLeft(2).MarginBottom(0)
+	m.list.Styles.Title = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		Padding(0, 1)
 	m.list.Styles.PaginationStyle = lipgloss.NewStyle().Margin(0)
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -152,10 +174,25 @@ func saveItems(items []Item) {
 	}
 }
 
+func saveItemsCmd(items []Item) tea.Cmd {
+	return func() tea.Msg {
+		saveItems(items)
+		return nil
+	}
+}
+
 func itemsToListItems(items []Item) []list.Item {
 	listItems := make([]list.Item, len(items))
 	for i, item := range items {
 		listItems[i] = item
 	}
 	return listItems
+}
+
+func itemsToItems(listItems []list.Item) []Item {
+	items := make([]Item, len(listItems))
+	for i, listItem := range listItems {
+		items[i] = listItem.(Item)
+	}
+	return items
 }
