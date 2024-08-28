@@ -45,6 +45,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selectRange(cursor)
 			} else {
 				m.toggleSelection(cursor)
+				m.moveToNextRow()
 			}
 			m.lastSelected = cursor
 			m.updateTableRows()
@@ -65,13 +66,51 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateTableRows()
 				return m, saveItemsCmd(m.items)
 			}
+		case "t":
+			m.saveState()
+			for i := range m.items {
+				m.items[i].Print = !m.items[i].Print
+			}
+			m.updateTableRows()
+			return m, saveItemsCmd(m.items)
+		case "a":
+			for i := range m.items {
+				m.selected[i] = struct{}{}
+			}
+			m.updateTableRows()
+			return m, nil
+		case "d":
+			m.selected = make(map[int]struct{})
+			m.updateTableRows()
+			return m, nil
+		case "e":
+			m.saveState()
+			allEnabled := true
+			for _, item := range m.items {
+				if !item.Print {
+					allEnabled = false
+					break
+				}
+			}
+			for i := range m.items {
+				m.items[i].Print = !allEnabled
+			}
+			m.updateTableRows()
+			return m, saveItemsCmd(m.items)
+		case "x":
+			m.saveState()
+			cursor := m.table.Cursor()
+			m.items[cursor].Print = !m.items[cursor].Print
+			m.moveToNextRow()
+			m.updateTableRows()
+			return m, saveItemsCmd(m.items)
 		}
 	case tea.WindowSizeMsg:
 		m.table.SetWidth(msg.Width)
 		return m, nil
 	}
 	m.table, cmd = m.table.Update(msg)
-	m.shiftPressed = false // Reset shift state after each update
+	m.shiftPressed = false
 	return m, cmd
 }
 
@@ -99,12 +138,18 @@ func (m *model) selectRange(endIndex int) {
 	}
 }
 
+func (m *model) moveToNextRow() {
+	nextRow := (m.table.Cursor() + 1) % len(m.items)
+	m.table.SetCursor(nextRow)
+}
+
 func (m model) View() string {
 	if m.quitting {
 		return "Bye!"
 	}
 	return baseStyle.Render(m.table.View()) + "\n" +
-		"Space: select/deselect row | Shift+Space: select range | Enter: toggle selected rows | u: undo | q: quit"
+		"Space: select/deselect row & move to next | Shift+Space: select range | Enter: toggle selected rows\n" +
+		"t: toggle all | a: select all | d: deselect all | e: toggle enable/disable all | x: toggle current row & move to next | u: undo | q: quit"
 }
 
 var baseStyle = lipgloss.NewStyle().
