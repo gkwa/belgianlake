@@ -39,6 +39,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateTableRows()
 			return m, saveItemsCmd(m.items)
 		}
+	case tea.WindowSizeMsg:
+		m.table.SetWidth(msg.Width)
+		return m, nil
 	}
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
@@ -60,7 +63,7 @@ func Main() {
 
 	columns := []table.Column{
 		{Title: "Print", Width: 5},
-		{Title: "File", Width: 50},
+		{Title: "File", Width: 80}, // Set width to 0 for unlimited width
 	}
 
 	rows := itemsToRows(items)
