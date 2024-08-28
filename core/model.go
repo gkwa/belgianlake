@@ -34,7 +34,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selectRange(cursor)
 			} else {
 				m.toggleSelection(cursor)
-				m.moveToNextRow()
+				if cursor < len(m.items)-1 {
+					m.moveToNextRow()
+				}
 			}
 			m.lastSelected = cursor
 			m.updateTableRows()
@@ -90,7 +92,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.saveState()
 			cursor := m.table.Cursor()
 			m.items[cursor].Print = !m.items[cursor].Print
-			m.moveToNextRow()
+			if cursor < len(m.items)-1 {
+				m.moveToNextRow()
+			}
 			m.updateTableRows()
 			return m, saveItemsCmd(m.items)
 		}
