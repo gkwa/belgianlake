@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -17,42 +17,30 @@ type Item struct {
 	File  string `json:"file"`
 }
 
-func (i Item) Title() string {
-	printStatus := "[ ]"
-	if i.Print {
-		printStatus = "[x]"
-	}
-	return fmt.Sprintf("%-3s %s", printStatus, i.File)
-}
-
-func (i Item) Description() string { return "" }
-func (i Item) FilterValue() string { return i.File }
-
 type model struct {
-	list     list.Model
+	table    table.Model
 	items    []Item
 	quitting bool
 }
 
-func (m model) Init() tea.Cmd {
-	return nil
-}
+func (m model) Init() tea.Cmd { return nil }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch keypress := msg.String(); keypress {
-		case "ctrl+c", "q":
+		switch msg.String() {
+		case "q", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
+		case " ":
+			index := m.table.Cursor()
+			m.items[index].Print = !m.items[index].Print
+			m.updateTableRows()
+			return m, saveItemsCmd(m.items)
 		}
-	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
 	}
-
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
 
@@ -60,69 +48,68 @@ func (m model) View() string {
 	if m.quitting {
 		return "Bye!"
 	}
-	return docStyle.Render(m.list.View())
+	return baseStyle.Render(m.table.View()) + "\n"
 }
 
-var docStyle = lipgloss.NewStyle().Margin(0, 0)
+var baseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240"))
 
 func Main() {
 	items := loadItems()
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
-		BorderLeft(true).
+	columns := []table.Column{
+		{Title: "Print", Width: 5},
+		{Title: "File", Width: 50},
+	}
+
+	rows := itemsToRows(items)
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(10),
+	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		Padding(0)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.
-		Padding(0)
-
-	customDelegate := func(d list.DefaultDelegate) list.DefaultDelegate {
-		d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
-			switch msg := msg.(type) {
-			case tea.KeyMsg:
-				switch msg.String() {
-				case " ":
-					index := m.Index()
-					items := m.Items()
-					if item, ok := items[index].(Item); ok {
-						item.Print = !item.Print
-						items[index] = item
-						m.SetItems(items)
-
-						// Move to the next item
-						nextIndex := (index + 1) % len(items)
-						m.Select(nextIndex)
-
-						return tea.Batch(
-							m.NewStatusMessage(fmt.Sprintf("Toggled %s", item.File)),
-							saveItemsCmd(itemsToItems(items)),
-						)
-					}
-				}
-			}
-			return nil
-		}
-		return d
-	}(delegate)
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	t.SetStyles(s)
 
 	m := model{
-		list:  list.New(itemsToListItems(items), customDelegate, 0, 0),
+		table: t,
 		items: items,
 	}
-	m.list.Title = "JSONL Items"
-	m.list.SetShowStatusBar(true)
-	m.list.SetFilteringEnabled(false)
-	m.list.Styles.Title = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderBottom(true).
-		Padding(0, 1)
-	m.list.Styles.PaginationStyle = lipgloss.NewStyle().Margin(0)
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
+}
+
+func (m *model) updateTableRows() {
+	m.table.SetRows(itemsToRows(m.items))
+}
+
+func itemsToRows(items []Item) []table.Row {
+	rows := make([]table.Row, len(items))
+	for i, item := range items {
+		printStatus := "[ ]"
+		if item.Print {
+			printStatus = "[x]"
+		}
+		rows[i] = table.Row{printStatus, item.File}
+	}
+	return rows
 }
 
 func loadItems() []Item {
@@ -169,20 +156,4 @@ func saveItemsCmd(items []Item) tea.Cmd {
 		saveItems(items)
 		return nil
 	}
-}
-
-func itemsToListItems(items []Item) []list.Item {
-	listItems := make([]list.Item, len(items))
-	for i, item := range items {
-		listItems[i] = item
-	}
-	return listItems
-}
-
-func itemsToItems(listItems []list.Item) []Item {
-	items := make([]Item, len(listItems))
-	for i, listItem := range listItems {
-		items[i] = listItem.(Item)
-	}
-	return items
 }
