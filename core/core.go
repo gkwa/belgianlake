@@ -5,18 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-logr/logr"
-
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-func Hello(logger logr.Logger) {
-	logger.V(1).Info("Debug: Entering Hello function")
-	logger.Info("Hello, World!")
-	logger.V(1).Info("Debug: Exiting Hello function")
-}
 
 const filename = "data.jsonl"
 
@@ -77,8 +69,6 @@ func Main() {
 	items := loadItems()
 
 	delegate := list.NewDefaultDelegate()
-	delegate.SetHeight(1)
-	delegate.SetSpacing(0)
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
 		BorderLeft(true).
 		BorderStyle(lipgloss.NormalBorder()).
@@ -120,7 +110,7 @@ func Main() {
 		items: items,
 	}
 	m.list.Title = "JSONL Items"
-	m.list.SetShowStatusBar(false)
+	m.list.SetShowStatusBar(true)
 	m.list.SetFilteringEnabled(false)
 	m.list.Styles.Title = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
