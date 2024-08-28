@@ -18,9 +18,13 @@ type Item struct {
 }
 
 type model struct {
-	table    table.Model
-	items    []Item
-	quitting bool
+	table        table.Model
+	items        []Item
+	quitting     bool
+	selected     map[int]struct{}
+	shiftPressed bool
+	lastSelected int
+	history      [][]Item
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -33,25 +37,74 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
+		case "shift":
+			m.shiftPressed = true
 		case " ":
-			index := m.table.Cursor()
-			m.items[index].Print = !m.items[index].Print
+			cursor := m.table.Cursor()
+			if m.shiftPressed {
+				m.selectRange(cursor)
+			} else {
+				m.toggleSelection(cursor)
+			}
+			m.lastSelected = cursor
+			m.updateTableRows()
+			return m, nil
+		case "enter":
+			m.saveState()
+			for index := range m.selected {
+				m.items[index].Print = !m.items[index].Print
+			}
+			m.selected = make(map[int]struct{})
 			m.updateTableRows()
 			return m, saveItemsCmd(m.items)
+		case "u":
+			if len(m.history) > 0 {
+				m.items = m.history[len(m.history)-1]
+				m.history = m.history[:len(m.history)-1]
+				m.selected = make(map[int]struct{})
+				m.updateTableRows()
+				return m, saveItemsCmd(m.items)
+			}
 		}
 	case tea.WindowSizeMsg:
 		m.table.SetWidth(msg.Width)
 		return m, nil
 	}
 	m.table, cmd = m.table.Update(msg)
+	m.shiftPressed = false // Reset shift state after each update
 	return m, cmd
+}
+
+func (m *model) saveState() {
+	itemsCopy := make([]Item, len(m.items))
+	copy(itemsCopy, m.items)
+	m.history = append(m.history, itemsCopy)
+}
+
+func (m *model) toggleSelection(index int) {
+	if _, ok := m.selected[index]; ok {
+		delete(m.selected, index)
+	} else {
+		m.selected[index] = struct{}{}
+	}
+}
+
+func (m *model) selectRange(endIndex int) {
+	startIndex := m.lastSelected
+	if startIndex > endIndex {
+		startIndex, endIndex = endIndex, startIndex
+	}
+	for i := startIndex; i <= endIndex; i++ {
+		m.selected[i] = struct{}{}
+	}
 }
 
 func (m model) View() string {
 	if m.quitting {
 		return "Bye!"
 	}
-	return baseStyle.Render(m.table.View()) + "\n"
+	return baseStyle.Render(m.table.View()) + "\n" +
+		"Space: select/deselect row | Shift+Space: select range | Enter: toggle selected rows | u: undo | q: quit"
 }
 
 var baseStyle = lipgloss.NewStyle().
@@ -63,7 +116,7 @@ func Main() {
 
 	columns := []table.Column{
 		{Title: "Print", Width: 5},
-		{Title: "File", Width: 80}, // Set width to 0 for unlimited width
+		{Title: "File", Width: 80},
 	}
 
 	rows := itemsToRows(items)
@@ -88,8 +141,11 @@ func Main() {
 	t.SetStyles(s)
 
 	m := model{
-		table: t,
-		items: items,
+		table:        t,
+		items:        items,
+		selected:     make(map[int]struct{}),
+		lastSelected: -1,
+		history:      [][]Item{},
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -100,7 +156,18 @@ func Main() {
 }
 
 func (m *model) updateTableRows() {
-	m.table.SetRows(itemsToRows(m.items))
+	rows := make([]table.Row, len(m.items))
+	for i, item := range m.items {
+		printStatus := "[ ]"
+		if item.Print {
+			printStatus = "[x]"
+		}
+		if _, ok := m.selected[i]; ok {
+			printStatus = ">" + printStatus
+		}
+		rows[i] = table.Row{printStatus, item.File}
+	}
+	m.table.SetRows(rows)
 }
 
 func itemsToRows(items []Item) []table.Row {
