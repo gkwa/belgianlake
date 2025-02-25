@@ -6,7 +6,7 @@ toolchain go1.24.0
 
 require (
 	github.com/charmbracelet/bubbles v0.20.0
-	github.com/charmbracelet/bubbletea v1.3.3
+	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/fatih/color v1.18.0
 	github.com/go-git/go-git/v5 v5.13.2
