@@ -41,6 +41,11 @@ func TestCustomLogger(t *testing.T) {
 		t.Error("Expected log output, but got none")
 	}
 
+	// Check if the log contains version information
+	if !strings.Contains(logOutput, "Version information") {
+		t.Error("Expected version information in log output")
+	}
+
 	t.Logf("Log output: %s", logOutput)
 }
 
@@ -80,12 +85,22 @@ func TestJSONLogger(t *testing.T) {
 	}
 
 	lines := strings.Split(strings.TrimSpace(logOutput), "\n")
+	validJSONFound := false
 	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
 		var jsonMap map[string]interface{}
 		err := json.Unmarshal([]byte(line), &jsonMap)
 		if err != nil {
-			t.Errorf("Expected valid JSON, but got error: %v", err)
+			t.Errorf("Expected valid JSON, but got error: %v for line: %s", err, line)
+		} else {
+			validJSONFound = true
 		}
+	}
+
+	if !validJSONFound {
+		t.Error("No valid JSON log entries found")
 	}
 
 	t.Logf("Log output: %s", logOutput)
