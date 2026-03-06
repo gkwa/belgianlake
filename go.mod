@@ -2,7 +2,7 @@ module github.com/gkwa/belgianlake
 
 go 1.25.6
 
-toolchain go1.26.0
+toolchain go1.26.1
 
 require (
 	github.com/charmbracelet/bubbles/v2 v2.0.0
